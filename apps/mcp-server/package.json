@@ -1,0 +1,30 @@
+{
+  "name": "mcp-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@google-cloud/storage": "^7.19.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "archiver": "^8.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.8.5",
+    "node-notifier": "^10.0.1",
+    "nodemailer": "^8.0.7",
+    "ocr-space-api-wrapper": "^2.4.7",
+    "open": "^11.0.0",
+    "screenshot-desktop": "^1.15.4",
+    "systeminformation": "^5.31.6",
+    "unzipper": "^0.12.3",
+    "zod": "^4.4.3"
+  }
+}

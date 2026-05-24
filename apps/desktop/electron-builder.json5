@@ -1,0 +1,61 @@
+// @see - https://www.electron.build/configuration/configuration
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "ai.jifile.desktop",
+  "electronDist": "node_modules/electron/dist",
+  "electronVersion": "30.5.1",
+  "asar": true,
+  "productName": "JiFile",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist",
+    "dist-electron",
+    "electron/preload.cjs",
+    "prisma/schema.prisma"
+  ],
+  "extraResources": [
+    {
+      "from": "../mcp-server",
+      "to": "mcp-server",
+      "filter": [
+        "**/*",
+        "!node_modules/.cache/**",
+        "!tests/**",
+        "!activity.log",
+        "!*.md"
+      ]
+    }
+  ],
+  "publish": {
+    "provider": "github",
+    "owner": "UtkarshKarale",
+    "repo": "JiFile"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "artifactName": "${productName}-Mac-${version}.${ext}",
+    "category": "public.app-category.productivity"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "artifactName": "${productName}-Linux-${version}.${ext}",
+    "category": "Utility"
+  }
+}

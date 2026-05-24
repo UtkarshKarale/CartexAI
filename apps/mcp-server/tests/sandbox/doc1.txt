@@ -1,0 +1,1 @@
+Hello from XFile MCP! This is a test document.

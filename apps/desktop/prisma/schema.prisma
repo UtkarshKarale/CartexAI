@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  displayName    String
+  email          String?
+  authKind       String
+  credentialHash String
+  credentialSalt String
+  createdAt      DateTime @default(now())
+  lastLoginAt    DateTime?
+  sessions       Session[]
+  devices        TrustedDevice[]
+
+  @@map("users")
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceId    String   @unique
+  platform    String
+  trustedAt   DateTime @default(now())
+  lastSeenAt  DateTime?
+  isActive    Boolean  @default(true)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("trusted_devices")
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  userId        String
+  deviceId      String
+  token         String
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+  lastSeenAt    DateTime
+  lockedAt      DateTime?
+  isActive      Boolean  @default(true)
+  rememberDevice Boolean @default(false)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model AppSettings {
+  id              Int     @id @default(1)
+  theme           String
+  autoLockMinutes Int
+  privacyMode     Boolean
+  analyticsEnabled Boolean
+  defaultModel    String
+  accent          String
+
+  @@map("app_settings")
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  title         String
+  preview       String
+  tagsJson      String
+  pinned        Boolean  @default(false)
+  messageCount  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  metadataJson   String
+  createdAt      DateTime @default(now())
+
+  @@map("messages")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  title     String
+  detail    String
+  severity  String
+  source    String
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
+
+model ToolExecution {
+  id            String   @id @default(cuid())
+  toolName      String
+  status        String
+  inputSummary  String
+  outputSummary String
+  startedAt     DateTime
+  finishedAt    DateTime?
+
+  @@map("tool_executions")
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  status      String
+  stepCount   Int
+  lastRunAt   DateTime?
+
+  @@map("workflows")
+}
+
+model IndexedFile {
+  id         String   @id @default(cuid())
+  path       String
+  name       String
+  fileType   String
+  indexedAt  DateTime @default(now())
+  sizeBytes  Int
+
+  @@map("indexed_files")
+}
+
+model Permission {
+  id        String   @id @default(cuid())
+  resource  String
+  action    String
+  granted   Boolean
+  scope     String
+  updatedAt DateTime @default(now())
+
+  @@map("permissions")
+}
+
+model MemoryPreference {
+  id         String   @id @default(cuid())
+  key        String
+  value      String
+  confidence Float
+  updatedAt  DateTime @default(now())
+
+  @@map("memory_preferences")
+}
+
