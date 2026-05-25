@@ -39,6 +39,7 @@
     "category": "public.app-category.productivity"
   },
   "win": {
+    "requestedExecutionLevel": "requireAdministrator",
     "target": [
       {
         "target": "nsis",

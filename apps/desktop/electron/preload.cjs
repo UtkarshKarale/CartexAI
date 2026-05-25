@@ -87,6 +87,9 @@ const api = {
     ipcRenderer.invoke(ipcChannels.clearConversation, conversationId),
   deleteConversation: (conversationId) =>
     ipcRenderer.invoke(ipcChannels.deleteConversation, conversationId),
+  showMainWindow: () => ipcRenderer.invoke(ipcChannels.showMainWindow),
+  showCompactWindow: () => ipcRenderer.invoke(ipcChannels.showCompactWindow),
+  quitApp: () => ipcRenderer.invoke(ipcChannels.quitApp),
   listDirectory: (dirPath) =>
     ipcRenderer.invoke(ipcChannels.listDirectory, dirPath),
   onUpdateAvailable: (callback) =>

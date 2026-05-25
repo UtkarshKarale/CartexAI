@@ -37,6 +37,9 @@ const api: RuntimeApi = {
   startDockerOllama: () => ipcRenderer.invoke(ipcChannels.startDockerOllama),
   clearConversation: (conversationId) => ipcRenderer.invoke(ipcChannels.clearConversation, conversationId),
   deleteConversation: (conversationId) => ipcRenderer.invoke(ipcChannels.deleteConversation, conversationId),
+  showMainWindow: () => ipcRenderer.invoke(ipcChannels.showMainWindow),
+  showCompactWindow: () => ipcRenderer.invoke(ipcChannels.showCompactWindow),
+  quitApp: () => ipcRenderer.invoke(ipcChannels.quitApp),
   listDirectory: (dirPath: string) => ipcRenderer.invoke(ipcChannels.listDirectory, dirPath),
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) =>
     ipcRenderer.on(ipcChannels.updateAvailable, (_event, info: UpdateInfo) => callback(info)),
@@ -51,4 +54,3 @@ const api: RuntimeApi = {
 }
 
 contextBridge.exposeInMainWorld('desktopApi', api)
-

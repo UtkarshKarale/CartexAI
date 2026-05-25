@@ -58,6 +58,7 @@ function initialRuntime(deviceId: string): AppRuntimeState {
 
 function AppContent() {
   const { pushToast } = useToast()
+  const compactWindow = new URLSearchParams(window.location.search).get('mode') === 'compact'
   const [bootstrapped, setBootstrapped] = useState(false)
   const [deviceId] = useState(() => createDeviceId())
   const [runtime, setRuntime] = useState<AppRuntimeState>(() => initialRuntime(deviceId))
@@ -512,6 +513,9 @@ const handleLock = useCallback(async () => {
         onUpdateSettings={handleUpdateSettings}
         onLock={() => void handleLock()}
         onLogout={() => void handleLogout()}
+        compact={compactWindow}
+        onOpenCompactWindow={() => void window.desktopApi.showCompactWindow()}
+        onOpenMainWindow={() => void window.desktopApi.showMainWindow()}
       />
 
       {runtime.authMode === 'locked' ? (

@@ -26,6 +26,9 @@ export const ipcChannels = {
   startDockerOllama: 'ai:start-docker-ollama',
   clearConversation: 'desktop:clear-conversation',
   deleteConversation: 'desktop:delete-conversation',
+  showMainWindow: 'desktop:show-main-window',
+  showCompactWindow: 'desktop:show-compact-window',
+  quitApp: 'desktop:quit-app',
   listDirectory: 'fs:list-directory',
   updateChecking: 'update:checking',
   updateAvailable: 'update:available',
@@ -37,4 +40,3 @@ export const ipcChannels = {
 } as const
 
 export type IpcChannel = (typeof ipcChannels)[keyof typeof ipcChannels]
-

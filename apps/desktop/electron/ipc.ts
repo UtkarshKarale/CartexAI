@@ -52,4 +52,3 @@ export function registerDesktopIpc(runtime: DesktopRuntime) {
   )
   ipcMain.handle(ipcChannels.listDirectory, (_event, dirPath: string) => runtime.listDirectory(dirPath))
 }
-

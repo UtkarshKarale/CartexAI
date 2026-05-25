@@ -3,7 +3,9 @@ import { autoUpdater } from 'electron-updater'
 import { ipcChannels } from '../src/shared/ipc'
 
 export function initUpdater(getWindow: () => BrowserWindow | null): void {
-  if (!app.isPackaged) return
+  if (!app.isPackaged) {
+    return
+  }
 
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
@@ -43,7 +45,7 @@ export function initUpdater(getWindow: () => BrowserWindow | null): void {
     })
   })
 
-  autoUpdater.on('error', (err) => {
+  autoUpdater.on('error', (err: Error) => {
     getWindow()?.webContents.send(ipcChannels.updateError, err.message)
   })
 

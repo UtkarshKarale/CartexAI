@@ -323,6 +323,9 @@ export interface RuntimeApi {
   startDockerOllama(): Promise<{ success: boolean; error?: string }>
   clearConversation(conversationId: string): Promise<void>
   deleteConversation(conversationId: string): Promise<void>
+  showMainWindow(): Promise<void>
+  showCompactWindow(): Promise<void>
+  quitApp(): Promise<void>
   listDirectory(dirPath: string): Promise<DirectoryListing>
   onUpdateAvailable(callback: (info: UpdateInfo) => void): void
   offUpdateAvailable(): void
