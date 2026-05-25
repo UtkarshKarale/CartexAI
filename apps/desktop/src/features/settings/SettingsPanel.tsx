@@ -13,6 +13,7 @@ import {
   EyeOff,
 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
+import { Badge } from '../../components/ui/badge'
 import { Input } from '../../components/ui/input'
 import { Switch } from '../../components/ui/switch'
 import type { AppSettings, GemmaModelInfo, ThemeMode } from '../../shared/contracts'
@@ -22,9 +23,11 @@ interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
   settings: AppSettings
+  appVersion: string
   gemmaModels: GemmaModelInfo[]
   onUpdateTheme: (value: ThemeMode) => void
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<void>
+  onCheckForUpdates: () => Promise<void>
   onRefreshModels: () => void
 }
 
@@ -32,9 +35,11 @@ export function SettingsPanel({
   isOpen,
   onClose,
   settings,
+  appVersion,
   gemmaModels,
   onUpdateTheme,
   onUpdateSettings,
+  onCheckForUpdates,
   onRefreshModels,
 }: SettingsModalProps) {
   const [anthropicKey, setAnthropicKey] = useState(settings.anthropicKey)
@@ -52,6 +57,7 @@ export function SettingsPanel({
   const [showSmtpPass, setShowSmtpPass] = useState(false)
   const [savingKey, setSavingKey] = useState<'anthropic' | 'openrouter' | 'gemini' | 'openai' | 'smtp' | null>(null)
   const [savedKey, setSavedKey] = useState<'anthropic' | 'openrouter' | 'gemini' | 'openai' | 'smtp' | null>(null)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -90,6 +96,15 @@ export function SettingsPanel({
       smtpFromName: smtpFromName.trim(),
     })
 
+  const handleCheckForUpdates = async () => {
+    setCheckingUpdates(true)
+    try {
+      await onCheckForUpdates()
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300 animate-in fade-in"
@@ -119,7 +134,7 @@ export function SettingsPanel({
           </nav>
 
           <div className="mt-auto px-3 py-4 border-t border-[rgb(var(--border))]">
-            <div className="text-[rgb(var(--muted-foreground))] text-xs font-mono">v1.0.4</div>
+            <div className="text-[rgb(var(--muted-foreground))] text-xs font-mono">{appVersion}</div>
           </div>
         </div>
 
@@ -152,6 +167,26 @@ export function SettingsPanel({
                   </SettingRow>
                   <SettingRow label="Delete All Chats" description="Permanently remove all local conversation data.">
                     <Button variant="outline" size="sm" className="bg-red-500/10 border-red-500/20 text-red-500 text-xs font-semibold hover:bg-red-500 hover:text-white">Delete all</Button>
+                  </SettingRow>
+                </Section>
+
+                <Section title="Updates">
+                  <SettingRow label="App Version" description="Installed desktop build version.">
+                    <Badge variant="outline" className="normal-case tracking-normal text-[11px] font-semibold">
+                      {appVersion}
+                    </Badge>
+                  </SettingRow>
+                  <SettingRow label="Check for Updates" description="Verify GitHub release auto-update is working.">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleCheckForUpdates()}
+                      disabled={checkingUpdates}
+                      className="text-xs font-semibold border-[rgb(var(--border))] bg-[rgb(var(--muted))]/20"
+                    >
+                      {checkingUpdates ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      {checkingUpdates ? 'Checking…' : 'Check now'}
+                    </Button>
                   </SettingRow>
                 </Section>
               </div>

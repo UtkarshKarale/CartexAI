@@ -51,4 +51,6 @@ export function registerDesktopIpc(runtime: DesktopRuntime) {
     runtime.deleteConversation(conversationId),
   )
   ipcMain.handle(ipcChannels.listDirectory, (_event, dirPath: string) => runtime.listDirectory(dirPath))
+  ipcMain.handle(ipcChannels.findSimilarImages, (_event, input) => runtime.findSimilarImages(input))
+  ipcMain.handle(ipcChannels.openTarget, (_event, target: string) => runtime.openTarget(target))
 }

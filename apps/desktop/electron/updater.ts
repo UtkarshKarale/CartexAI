@@ -53,5 +53,9 @@ export function initUpdater(getWindow: () => BrowserWindow | null): void {
     autoUpdater.quitAndInstall()
   })
 
+  ipcMain.handle(ipcChannels.checkForUpdates, async () => {
+    await autoUpdater.checkForUpdatesAndNotify()
+  })
+
   autoUpdater.checkForUpdatesAndNotify()
 }

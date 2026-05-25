@@ -10,7 +10,7 @@ const TOOL_NAMES = [
   'open_application', 'terminal_session', 'execute_command',
   'take_screenshot', 'ocr_image', 'ai_summary', 'semantic_search',
   'send_email_smtp', 'clipboard_manager', 'voice_command',
-  'startup_apps', 'undo_action', 'workflow_runner'
+  'startup_apps', 'undo_action', 'workflow_runner', 'find_similar_images'
 ];
 
 const SYSTEM_PROMPT = `You are a tool router. Given a user request, reply with ONLY the tool name that best matches. No explanation, no punctuation — just the tool name.
@@ -36,6 +36,9 @@ user: take a screenshot → take_screenshot
 user: what files did I open recently → recent_files
 user: show system info → system_info
 user: open chrome → open_application
+user: open this photo → open_application
+user: find similar photos → find_similar_images
+user: search images across drives → find_similar_images
 user: run ls command → execute_command
 user: send email to boss → send_email_smtp
 user: read contents of file.txt → read_file

@@ -1,6 +1,6 @@
 import path from 'node:path'
 import os from 'node:os'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { app, shell } from 'electron'
 import { SQLiteCliDatabase, bool, json, nowIso, sql } from './sqlite'
@@ -20,11 +20,14 @@ import type {
   CreateConversationInput,
   DeviceInfo,
   DirectoryListing,
+  FindSimilarImagesInput,
   InstallProgress,
   LoginInput,
   MessageRecord,
+  OpenTargetResult,
   ProviderStatus,
   PullModelProgress,
+  SimilarImagesResponse,
   SessionInfo,
   StreamChunk,
   SystemInfo,
@@ -870,6 +873,58 @@ export class DesktopRuntime {
     }
   }
 
+  async findSimilarImages(input: FindSimilarImagesInput): Promise<SimilarImagesResponse> {
+    const raw = await this.callMcpTool('find_similar_images', {
+      imagePath: input.imagePath,
+      directory: input.directory?.trim() || undefined,
+      maxResults: input.maxResults ?? 20,
+    })
+
+    try {
+      return JSON.parse(raw) as SimilarImagesResponse
+    } catch (error) {
+      throw new Error(`Unable to parse image search results: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  async openTarget(target: string): Promise<OpenTargetResult> {
+    const normalizedTarget = String(target ?? '').trim()
+    if (!normalizedTarget) {
+      throw new Error('Target is required.')
+    }
+
+    if (/^https?:\/\//i.test(normalizedTarget) || /^file:\/\//i.test(normalizedTarget)) {
+      await shell.openExternal(normalizedTarget)
+      return {
+        success: true,
+        target: normalizedTarget,
+        resolvedTarget: normalizedTarget,
+        message: `Opened URL: ${normalizedTarget}`,
+      }
+    }
+
+    if (existsSync(normalizedTarget)) {
+      const openResult = await shell.openPath(normalizedTarget)
+      if (openResult) {
+        throw new Error(openResult)
+      }
+      return {
+        success: true,
+        target: normalizedTarget,
+        resolvedTarget: normalizedTarget,
+        message: `Opened: ${normalizedTarget}`,
+      }
+    }
+
+    const text = await this.callMcpTool('open_application', { target: normalizedTarget })
+    return {
+      success: true,
+      target: normalizedTarget,
+      resolvedTarget: normalizedTarget,
+      message: text || `Opened: ${normalizedTarget}`,
+    }
+  }
+
   private listConversations(): ConversationSummary[] {
     return this.database.query<ConversationRow>('SELECT * FROM conversations ORDER BY pinned DESC, updated_at DESC;').map((row) => ({
       id: row.id,
@@ -988,6 +1043,39 @@ export class DesktopRuntime {
       confidence: row.confidence,
       updatedAt: row.updated_at,
     }))
+  }
+
+  private async callMcpTool(name: string, args: Record<string, unknown>): Promise<string> {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch(`http://127.0.0.1:4000/api/call/${name}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(args),
+        })
+
+        if (!response.ok) {
+          const text = await response.text()
+          throw new Error(`MCP tool "${name}" failed (${response.status}): ${text}`)
+        }
+
+        const payload = await response.json() as { content?: Array<{ type: string; text: string }>; isError?: boolean }
+        const text = payload.content?.map((entry) => entry.text).join('\n') ?? ''
+
+        if (payload.isError) {
+          throw new Error(text || `Tool ${name} failed`)
+        }
+
+        return text
+      } catch (error) {
+        if (attempt === 3) {
+          throw error
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      }
+    }
+
+    throw new Error(`MCP tool "${name}" failed`)
   }
 
   private getConversationById(id: string) {

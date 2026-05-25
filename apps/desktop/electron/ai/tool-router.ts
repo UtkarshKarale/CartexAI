@@ -19,6 +19,8 @@ const INTENT_MAP: Array<{ pattern: RegExp; tools: string[] }> = [
   { pattern: /\b(backup|drive|cloud|google drive|upload)\b/i,        tools: ['backup_to_drive'] },
   { pattern: /\b(clipboard|paste|copy to clip)\b/i,                  tools: ['clipboard_manager'] },
   { pattern: /\b(open|launch|start app)\b/i,                         tools: ['open_application'] },
+  { pattern: /\b(open|view|show)\b.*\b(image|photo|picture|file)\b/i, tools: ['open_application'] },
+  { pattern: /\b(photo|photos|picture|pictures|image|images|similar image|find photo|find picture|search images)\b/i, tools: ['find_similar_images'] },
   { pattern: /\b(ocr|text from image|extract text|read image)\b/i,   tools: ['ocr_image'] },
   { pattern: /\b(permission|chmod|access rights)\b/i,                tools: ['file_permissions'] },
   { pattern: /\b(startup|autostart|boot|login items)\b/i,            tools: ['startup_apps'] },

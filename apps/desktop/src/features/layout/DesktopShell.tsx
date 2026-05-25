@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Image,
   Lock,
   LogOut,
   Menu,
@@ -18,6 +19,7 @@ import {
 import type { AppSettings, ConversationSummary, GemmaModelInfo, MessageRecord, ModelSetupChunk, ThemeMode, UserProfile } from '../../shared/contracts'
 import { cn } from '../../lib/utils'
 import { ChatPanel } from '../chat/ChatPanel'
+import { PhotoSearchPanel } from '../photo-search/PhotoSearchPanel'
 import { SettingsPanel } from '../settings/SettingsPanel'
 import { Sheet, SheetContent } from '../../components/ui/sheet'
 
@@ -39,6 +41,8 @@ interface DesktopShellProps {
   onDeleteConversation: (id: string) => void
   onUpdateTheme: (theme: ThemeMode) => void
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<void>
+  onCheckForUpdates: () => Promise<void>
+  appVersion: string
   onLock: () => void
   onLogout: () => void
   compact?: boolean
@@ -63,6 +67,8 @@ export function DesktopShell({
   onDeleteConversation,
   onUpdateTheme,
   onUpdateSettings,
+  onCheckForUpdates,
+  appVersion,
   onLock,
   onLogout,
   compact = false,
@@ -72,6 +78,7 @@ export function DesktopShell({
   const [collapsed, setCollapsed] = useState(compact)
   const [showSettings, setShowSettings] = useState(false)
   const [showWorkspace, setShowWorkspace] = useState(false)
+  const [showPhotoSearch, setShowPhotoSearch] = useState(false)
   const currentConversation = conversations.find((c) => c.id === selectedConversationId) ?? null
   const conversationList = conversations
 
@@ -141,6 +148,14 @@ export function DesktopShell({
             <div className="flex items-center gap-1.5">
               <CompactActionButton icon={<MessageSquarePlus className="h-4 w-4" />} label="New chat" onClick={onCreateConversation} />
               <CompactActionButton icon={<Settings2 className="h-4 w-4" />} label="Settings" onClick={() => setShowSettings(true)} />
+              <CompactActionButton
+                icon={<Image className="h-4 w-4" />}
+                label="Photo finder"
+                onClick={() => {
+                  setShowSettings(false)
+                  setShowPhotoSearch(true)
+                }}
+              />
               <CompactActionButton icon={<Lock className="h-4 w-4" />} label="Lock" onClick={onLock} />
               <CompactActionButton icon={<LogOut className="h-4 w-4" />} label="Sign out" onClick={onLogout} />
             </div>
@@ -174,6 +189,10 @@ export function DesktopShell({
               onDeleteConversation={onDeleteConversation}
               onLock={onLock}
               onLogout={onLogout}
+              onOpenPhotoSearch={() => {
+                setShowSettings(false)
+                setShowPhotoSearch(true)
+              }}
             />
           </SheetContent>
         </Sheet>
@@ -182,11 +201,15 @@ export function DesktopShell({
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           settings={settings}
+          appVersion={appVersion}
           gemmaModels={gemmaModels}
           onUpdateTheme={onUpdateTheme}
           onUpdateSettings={onUpdateSettings}
+          onCheckForUpdates={onCheckForUpdates}
           onRefreshModels={onRefreshModels}
         />
+
+        <PhotoSearchPanel isOpen={showPhotoSearch} onClose={() => setShowPhotoSearch(false)} />
       </div>
     )
   }
@@ -209,6 +232,10 @@ export function DesktopShell({
         onLock={onLock}
         onLogout={onLogout}
         onOpenCompactWindow={onOpenCompactWindow}
+        onOpenPhotoSearch={() => {
+          setShowSettings(false)
+          setShowPhotoSearch(true)
+        }}
       />
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -225,11 +252,15 @@ export function DesktopShell({
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         settings={settings}
+        appVersion={appVersion}
         gemmaModels={gemmaModels}
         onUpdateTheme={onUpdateTheme}
         onUpdateSettings={onUpdateSettings}
+        onCheckForUpdates={onCheckForUpdates}
         onRefreshModels={onRefreshModels}
       />
+
+      <PhotoSearchPanel isOpen={showPhotoSearch} onClose={() => setShowPhotoSearch(false)} />
     </div>
   )
 }
@@ -251,6 +282,7 @@ function WorkspaceSidebar({
   onLogout,
   compact = false,
   onOpenCompactWindow,
+  onOpenPhotoSearch,
 }: {
   user?: UserProfile | null
   conversations: ConversationSummary[]
@@ -268,6 +300,7 @@ function WorkspaceSidebar({
   onLogout: () => void
   compact?: boolean
   onOpenCompactWindow?: () => void
+  onOpenPhotoSearch?: () => void
 }) {
   return (
     <aside
@@ -376,6 +409,12 @@ function WorkspaceSidebar({
       </div>
 
       <div className="border-t border-[rgb(var(--border))] p-2 space-y-0.5">
+        <SidebarAction
+          icon={<Image className="h-4 w-4" />}
+          label="Photo finder"
+          collapsed={collapsed}
+          onClick={() => onOpenPhotoSearch?.()}
+        />
         <SidebarAction
           icon={<Settings2 className="h-4 w-4" />}
           label="Settings"

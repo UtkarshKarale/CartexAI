@@ -241,6 +241,38 @@ export interface DirectoryListing {
   cwd: string
 }
 
+export interface FindSimilarImagesInput {
+  imagePath: string
+  directory?: string
+  maxResults?: number
+}
+
+export interface SimilarImageResult {
+  path: string
+  name: string
+  sizeBytes: number
+  mtimeMs: number
+  distance: number
+  score: number
+  openable: boolean
+  ocrText: string
+}
+
+export interface SimilarImagesResponse {
+  query: string
+  queryOcr: string
+  roots: string[]
+  scannedCount: number
+  results: SimilarImageResult[]
+}
+
+export interface OpenTargetResult {
+  success: boolean
+  target: string
+  resolvedTarget?: string
+  message: string
+}
+
 export interface AppRuntimeState {
   authMode: AuthMode
   user: UserProfile | null
@@ -326,12 +358,18 @@ export interface RuntimeApi {
   showMainWindow(): Promise<void>
   showCompactWindow(): Promise<void>
   quitApp(): Promise<void>
+  checkForUpdates(): Promise<void>
+  getAppVersion(): Promise<string>
   listDirectory(dirPath: string): Promise<DirectoryListing>
+  findSimilarImages(input: FindSimilarImagesInput): Promise<SimilarImagesResponse>
+  openTarget(target: string): Promise<OpenTargetResult>
   onUpdateAvailable(callback: (info: UpdateInfo) => void): void
   offUpdateAvailable(): void
   onUpdateDownloadProgress(callback: (progress: UpdateDownloadProgress) => void): void
   offUpdateDownloadProgress(): void
   onUpdateDownloaded(callback: (info: UpdateInfo) => void): void
   offUpdateDownloaded(): void
+  onUpdateError(callback: (message: string) => void): void
+  offUpdateError(): void
   installUpdate(): void
 }

@@ -29,6 +29,8 @@ const ipcChannels = {
   clearConversation: 'desktop:clear-conversation',
   deleteConversation: 'desktop:delete-conversation',
   listDirectory: 'fs:list-directory',
+  findSimilarImages: 'desktop:find-similar-images',
+  openTarget: 'desktop:open-target',
   updateChecking: 'update:checking',
   updateAvailable: 'update:available',
   updateNotAvailable: 'update:not-available',
@@ -90,8 +92,14 @@ const api = {
   showMainWindow: () => ipcRenderer.invoke(ipcChannels.showMainWindow),
   showCompactWindow: () => ipcRenderer.invoke(ipcChannels.showCompactWindow),
   quitApp: () => ipcRenderer.invoke(ipcChannels.quitApp),
+  checkForUpdates: () => ipcRenderer.invoke(ipcChannels.checkForUpdates),
+  getAppVersion: () => ipcRenderer.invoke(ipcChannels.getAppVersion),
   listDirectory: (dirPath) =>
     ipcRenderer.invoke(ipcChannels.listDirectory, dirPath),
+  findSimilarImages: (input) =>
+    ipcRenderer.invoke(ipcChannels.findSimilarImages, input),
+  openTarget: (target) =>
+    ipcRenderer.invoke(ipcChannels.openTarget, target),
   onUpdateAvailable: (callback) =>
     ipcRenderer.on(ipcChannels.updateAvailable, (_event, info) => callback(info)),
   offUpdateAvailable: () =>
@@ -104,6 +112,10 @@ const api = {
     ipcRenderer.on(ipcChannels.updateDownloaded, (_event, info) => callback(info)),
   offUpdateDownloaded: () =>
     ipcRenderer.removeAllListeners(ipcChannels.updateDownloaded),
+  onUpdateError: (callback) =>
+    ipcRenderer.on(ipcChannels.updateError, (_event, message) => callback(message)),
+  offUpdateError: () =>
+    ipcRenderer.removeAllListeners(ipcChannels.updateError),
   installUpdate: () =>
     ipcRenderer.send(ipcChannels.installUpdate),
 }

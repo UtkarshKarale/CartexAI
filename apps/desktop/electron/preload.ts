@@ -40,7 +40,11 @@ const api: RuntimeApi = {
   showMainWindow: () => ipcRenderer.invoke(ipcChannels.showMainWindow),
   showCompactWindow: () => ipcRenderer.invoke(ipcChannels.showCompactWindow),
   quitApp: () => ipcRenderer.invoke(ipcChannels.quitApp),
+  checkForUpdates: () => ipcRenderer.invoke(ipcChannels.checkForUpdates),
+  getAppVersion: () => ipcRenderer.invoke(ipcChannels.getAppVersion),
   listDirectory: (dirPath: string) => ipcRenderer.invoke(ipcChannels.listDirectory, dirPath),
+  findSimilarImages: (input) => ipcRenderer.invoke(ipcChannels.findSimilarImages, input),
+  openTarget: (target: string) => ipcRenderer.invoke(ipcChannels.openTarget, target),
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) =>
     ipcRenderer.on(ipcChannels.updateAvailable, (_event, info: UpdateInfo) => callback(info)),
   offUpdateAvailable: () => ipcRenderer.removeAllListeners(ipcChannels.updateAvailable),
@@ -50,6 +54,9 @@ const api: RuntimeApi = {
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) =>
     ipcRenderer.on(ipcChannels.updateDownloaded, (_event, info: UpdateInfo) => callback(info)),
   offUpdateDownloaded: () => ipcRenderer.removeAllListeners(ipcChannels.updateDownloaded),
+  onUpdateError: (callback: (message: string) => void) =>
+    ipcRenderer.on(ipcChannels.updateError, (_event, message: string) => callback(message)),
+  offUpdateError: () => ipcRenderer.removeAllListeners(ipcChannels.updateError),
   installUpdate: () => ipcRenderer.send(ipcChannels.installUpdate),
 }
 

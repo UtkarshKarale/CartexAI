@@ -20,8 +20,21 @@ export class SQLiteCliDatabase {
       input: sql,
       encoding: 'utf8',
     })
+
+    if (result.error) {
+      if ((result.error as any).code === 'ENOENT') {
+        throw new Error(
+          'SQLite CLI (sqlite3) not found in your system PATH. ' +
+          'Please install the SQLite command-line tools from https://www.sqlite.org/download.html ' +
+          'and ensure "sqlite3" is available in your terminal.'
+        )
+      }
+      throw result.error
+    }
+
     if (result.status !== 0) {
-      throw new Error(result.stderr || 'SQLite execution failed')
+      const errorMsg = result.stderr?.trim() || 'SQLite execution failed'
+      throw new Error(`[SQLite Error] ${errorMsg}\nExit Code: ${result.status}\nCommand: sqlite3 "${this.dbPath}"`)
     }
   }
 
@@ -29,14 +42,35 @@ export class SQLiteCliDatabase {
     const result = spawnSync('sqlite3', ['-json', this.dbPath, sql], {
       encoding: 'utf8',
     })
+
+    if (result.error) {
+      if ((result.error as any).code === 'ENOENT') {
+        throw new Error(
+          'SQLite CLI (sqlite3) not found. Please install it to use local storage.'
+        )
+      }
+      throw result.error
+    }
+
     if (result.status !== 0) {
-      throw new Error(result.stderr || 'SQLite query failed')
+      const errorMsg = result.stderr?.trim() || 'SQLite query failed'
+      if (errorMsg.includes('unknown option: -json')) {
+        throw new Error(
+          'Your sqlite3 version is too old and does not support the -json flag. ' +
+          'Please update sqlite3 to version 3.33.0 or newer.'
+        )
+      }
+      throw new Error(`[SQLite Error] ${errorMsg}\nExit Code: ${result.status}\nCommand: sqlite3 -json "${this.dbPath}" "${sql}"`)
     }
     const output = result.stdout.trim()
     if (!output) {
       return []
     }
-    return JSON.parse(output) as T[]
+    try {
+      return JSON.parse(output) as T[]
+    } catch (err) {
+      throw new Error(`Failed to parse SQLite JSON output: ${output}`)
+    }
   }
 
   queryOne<T extends Record<string, unknown>>(sql: string): T | null {

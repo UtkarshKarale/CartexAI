@@ -23,6 +23,7 @@
     "ocr-space-api-wrapper": "^2.4.7",
     "open": "^11.0.0",
     "screenshot-desktop": "^1.15.4",
+    "sharp": "^0.34.5",
     "systeminformation": "^5.31.6",
     "unzipper": "^0.12.3",
     "zod": "^4.4.3"

@@ -275,6 +275,8 @@ function registerWindowIpc() {
     isQuitting = true
     app.quit()
   })
+
+  ipcMain.handle(ipcChannels.getAppVersion, () => app.getVersion())
 }
 
 if (hasSingleInstanceLock) {

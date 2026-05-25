@@ -72,6 +72,7 @@ function AppContent() {
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null)
   const [gemmaModels, setGemmaModels] = useState<GemmaModelInfo[]>([])
+  const [appVersion, setAppVersion] = useState('unknown')
   const lockTimerRef = useRef<number | null>(null)
 
   const applyBootstrap = useCallback((payload: BootstrapPayload) => {
@@ -98,6 +99,8 @@ function AppContent() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        const version = await window.desktopApi.getAppVersion().catch(() => 'unknown')
+        setAppVersion(version)
         const payload = await window.desktopApi.bootstrap(deviceId)
         applyBootstrap(payload)
       } catch {
@@ -112,6 +115,42 @@ function AppContent() {
 
     initialize()
   }, [applyBootstrap, deviceId, pushToast])
+
+  useEffect(() => {
+    const handleUpdateAvailable = (info: { version: string; releaseName: string | null; releaseDate: string; releaseNotes: string | null }) => {
+      pushToast({
+        title: 'Update available',
+        description: `Version ${info.version} is downloading in the background.`,
+        variant: 'warning',
+      })
+    }
+
+    const handleUpdateDownloaded = (info: { version: string; releaseName: string | null; releaseDate: string; releaseNotes: string | null }) => {
+      pushToast({
+        title: 'Update downloaded',
+        description: `Restart the app to install version ${info.version}.`,
+        variant: 'success',
+      })
+    }
+
+    const handleUpdateError = (message: string) => {
+      pushToast({
+        title: 'Update failed',
+        description: message,
+        variant: 'destructive',
+      })
+    }
+
+    window.desktopApi.onUpdateAvailable(handleUpdateAvailable)
+    window.desktopApi.onUpdateDownloaded(handleUpdateDownloaded)
+    window.desktopApi.onUpdateError(handleUpdateError)
+
+    return () => {
+      window.desktopApi.offUpdateAvailable()
+      window.desktopApi.offUpdateDownloaded()
+      window.desktopApi.offUpdateError()
+    }
+  }, [pushToast])
 
   useEffect(() => {
     const resolvedTheme =
@@ -511,6 +550,8 @@ const handleLock = useCallback(async () => {
         onDeleteConversation={handleDeleteConversation}
         onUpdateTheme={handleUpdateTheme}
         onUpdateSettings={handleUpdateSettings}
+        onCheckForUpdates={() => window.desktopApi.checkForUpdates()}
+        appVersion={appVersion}
         onLock={() => void handleLock()}
         onLogout={() => void handleLogout()}
         compact={compactWindow}
