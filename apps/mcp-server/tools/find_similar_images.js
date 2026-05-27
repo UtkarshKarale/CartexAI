@@ -6,12 +6,19 @@ const sharp = require('sharp')
 const ocrSpace = require('ocr-space-api-wrapper')
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.tif', '.tiff', '.heic'])
+const MAX_PREFILTER_CANDIDATES = 250
+const MAX_OBJECT_RESULTS = 5
+
+let imageFeaturePipelinePromise = null
+let objectDetectionPipelinePromise = null
+const embeddingCache = new Map()
+const objectCache = new Map()
 
 module.exports = {
   name: 'find_similar_images',
   definition: {
     name: 'find_similar_images',
-    description: 'Find visually similar images across local drives using perceptual hashing and OCR.',
+    description: 'Find visually similar images across local drives using image embeddings, object detection, perceptual hashing, and OCR.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -42,6 +49,8 @@ module.exports = {
       const maxResults = clampNumber(args.maxResults, 1, 50, 20)
       const roots = buildSearchRoots(args.directory)
       const queryHash = await imageHash(imagePath)
+      const queryEmbedding = await getImageEmbedding(imagePath).catch(() => null)
+      const queryObjects = await getObjectLabels(imagePath).catch(() => [])
       const queryOcr = await extractOcrText(imagePath)
 
       const candidates = []
@@ -49,20 +58,20 @@ module.exports = {
         await walkImages(root, candidates, 0, 4000)
       }
 
-      const scored = []
+      const prefixed = []
       for (const candidate of candidates) {
         try {
           const candidateHash = await imageHash(candidate.path)
           const distance = hammingDistance(queryHash, candidateHash)
           const baseScore = 1 - distance / 64
           const nameScore = nameSimilarity(path.basename(imagePath), candidate.name)
-          scored.push({
+          prefixed.push({
             path: candidate.path,
             name: candidate.name,
             sizeBytes: candidate.sizeBytes,
             mtimeMs: candidate.mtimeMs,
             distance,
-            score: roundScore(baseScore * 0.8 + nameScore * 0.2),
+            quickScore: roundScore(baseScore * 0.8 + nameScore * 0.2),
             openable: true,
           })
         } catch {
@@ -70,28 +79,35 @@ module.exports = {
         }
       }
 
-      scored.sort((a, b) => b.score - a.score || a.distance - b.distance)
-      const top = scored.slice(0, maxResults)
+      prefixed.sort((a, b) => b.quickScore - a.quickScore || a.distance - b.distance)
+      const topPrefilter = prefixed.slice(0, MAX_PREFILTER_CANDIDATES)
 
       const results = []
-      for (const item of top) {
+      for (const item of topPrefilter) {
+        const embedding = await getImageEmbedding(item.path).catch(() => null)
+        const embeddingScore = queryEmbedding && embedding ? cosineSimilarity(queryEmbedding, embedding) : 0
         const ocrText = queryOcr ? await maybeOcr(item.path) : ''
         const textScore = queryOcr && ocrText ? overlapScore(queryOcr, ocrText) : 0
+        const objectLabels = await getObjectLabels(item.path).catch(() => [])
+        const objectScore = objectOverlapScore(queryObjects, objectLabels)
         results.push({
           ...item,
-          score: roundScore(item.score * 0.85 + textScore * 0.15),
+          score: roundScore(item.quickScore * 0.25 + embeddingScore * 0.5 + textScore * 0.15 + objectScore * 0.1),
           ocrText: ocrText ? ocrText.slice(0, 200) : '',
+          objects: objectLabels.slice(0, MAX_OBJECT_RESULTS),
         })
       }
 
       results.sort((a, b) => b.score - a.score || a.distance - b.distance)
+      const top = results.slice(0, maxResults)
 
       const payload = {
         query: imagePath,
         queryOcr: queryOcr ? queryOcr.slice(0, 300) : '',
+        queryObjects,
         roots,
         scannedCount: candidates.length,
-        results,
+        results: top,
       }
 
       return {
@@ -126,6 +142,13 @@ function roundScore(score) {
   return Math.max(0, Math.min(1, Number(score.toFixed(4))))
 }
 
+function normalizeVector(values) {
+  const vector = Array.from(values)
+  const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0))
+  if (!magnitude) return vector
+  return vector.map((value) => value / magnitude)
+}
+
 function buildSearchRoots(directory) {
   if (directory && String(directory).trim()) {
     return [String(directory).trim()]
@@ -133,9 +156,25 @@ function buildSearchRoots(directory) {
 
   const roots = []
   if (process.platform === 'win32') {
+    const home = os.homedir()
+    for (const candidate of [
+      home,
+      path.join(home, 'Downloads'),
+      path.join(home, 'Desktop'),
+      path.join(home, 'Pictures'),
+      path.join(home, 'Documents'),
+      path.join(home, 'OneDrive', 'Pictures'),
+      path.join(home, 'OneDrive', 'Desktop'),
+      path.join(home, 'OneDrive', 'Documents'),
+    ]) {
+      if (candidate && fs.existsSync(candidate) && !roots.includes(candidate)) {
+        roots.push(candidate)
+      }
+    }
+
     for (let code = 67; code <= 90; code += 1) {
       const drive = `${String.fromCharCode(code)}:\\`
-      if (fs.existsSync(drive)) roots.push(drive)
+      if (fs.existsSync(drive) && !roots.includes(drive)) roots.push(drive)
     }
   } else {
     roots.push(os.homedir())
@@ -188,6 +227,9 @@ function shouldSkipDirectory(name, depth) {
 }
 
 async function imageHash(imagePath) {
+  const cacheKey = `hash:${imagePath}`
+  const cached = embeddingCache.get(cacheKey)
+  if (cached) return cached
   const { data } = await sharp(imagePath).rotate().resize(9, 8, { fit: 'fill' }).grayscale().raw().toBuffer({ resolveWithObject: true })
   const bits = []
   for (let y = 0; y < 8; y += 1) {
@@ -197,7 +239,9 @@ async function imageHash(imagePath) {
       bits.push(left > right ? '1' : '0')
     }
   }
-  return bits.join('')
+  const hash = bits.join('')
+  embeddingCache.set(cacheKey, hash)
+  return hash
 }
 
 function hammingDistance(a, b) {
@@ -239,6 +283,18 @@ function overlapScore(a, b) {
   return matches / Math.max(left.length, right.length)
 }
 
+function objectOverlapScore(queryObjects, candidateObjects) {
+  if (!queryObjects.length || !candidateObjects.length) return 0
+  const left = new Set(queryObjects.map((item) => item.toLowerCase()))
+  let matches = 0
+  for (const item of candidateObjects) {
+    if (left.has(String(item).toLowerCase())) {
+      matches += 1
+    }
+  }
+  return matches / Math.max(queryObjects.length, candidateObjects.length)
+}
+
 async function maybeOcr(imagePath) {
   const apiKey = process.env.OCR_SPACE_API_KEY || 'K88574161788957'
   try {
@@ -251,4 +307,56 @@ async function maybeOcr(imagePath) {
 
 async function extractOcrText(imagePath) {
   return maybeOcr(imagePath)
+}
+
+async function getImageEmbedding(imagePath) {
+  const cacheKey = `embed:${imagePath}`
+  const cached = embeddingCache.get(cacheKey)
+  if (cached) return cached
+
+  const { pipeline, RawImage } = await import('@xenova/transformers')
+  if (!imageFeaturePipelinePromise) {
+    imageFeaturePipelinePromise = pipeline('image-feature-extraction', 'Xenova/clip-vit-base-patch32')
+  }
+
+  const imageFeatureExtractor = await imageFeaturePipelinePromise
+  const image = await RawImage.read(imagePath)
+  const output = await imageFeatureExtractor(image)
+  const embedding = normalizeVector(output.data ?? [])
+  embeddingCache.set(cacheKey, embedding)
+  return embedding
+}
+
+async function getObjectLabels(imagePath) {
+  const cacheKey = `objects:${imagePath}`
+  const cached = objectCache.get(cacheKey)
+  if (cached) return cached
+
+  const { pipeline } = await import('@xenova/transformers')
+  if (!objectDetectionPipelinePromise) {
+    objectDetectionPipelinePromise = pipeline('object-detection', 'Xenova/detr-resnet-50')
+  }
+
+  const detector = await objectDetectionPipelinePromise
+  const detections = await detector(imagePath)
+  const labels = Array.from(
+    new Set(
+      detections
+        .filter((item) => Number(item.score) >= 0.35)
+        .slice(0, 6)
+        .map((item) => item.label),
+    ),
+  )
+  objectCache.set(cacheKey, labels)
+  return labels
+}
+
+function cosineSimilarity(a, b) {
+  if (!a.length || !b.length) return 0
+  let sum = 0
+  const length = Math.min(a.length, b.length)
+  for (let i = 0; i < length; i += 1) {
+    sum += a[i] * b[i]
+  }
+  return Math.max(0, Math.min(1, sum))
 }

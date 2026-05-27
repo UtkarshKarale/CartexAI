@@ -1,4 +1,3 @@
-const screenshot = require('screenshot-desktop');
 const path = require('path');
 const fs = require('fs');
 
@@ -21,6 +20,7 @@ module.exports = {
   handler: async (args) => {
     const { filename = 'screenshot.png' } = args;
     try {
+      const screenshot = require('screenshot-desktop');
       const imgPath = await screenshot({ filename });
       return {
         content: [

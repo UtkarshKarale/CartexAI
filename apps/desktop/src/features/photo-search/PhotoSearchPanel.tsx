@@ -313,6 +313,15 @@ export function PhotoSearchPanel({ isOpen, onClose }: PhotoSearchPanelProps) {
                   ? `OCR hint: ${result.queryOcr.slice(0, 180)}${result.queryOcr.length > 180 ? '…' : ''}`
                   : 'OCR is used when the query image has readable text.'}
               </div>
+              {result?.queryObjects?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {result.queryObjects.map((label) => (
+                    <Badge key={label} variant="outline" className="capitalize">
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
               {result?.roots?.length ? (
                 <div className="flex flex-wrap gap-2">
                   {result.roots.slice(0, 6).map((root) => (
@@ -391,6 +400,16 @@ function ResultCard({
       {item.ocrText ? (
         <div className="mt-3 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--muted))]/10 px-3 py-2 text-xs text-[rgb(var(--muted-foreground))]">
           {item.ocrText}
+        </div>
+      ) : null}
+
+      {item.objects?.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {item.objects.map((label) => (
+            <Badge key={`${item.path}-${label}`} variant="muted" className="capitalize">
+              {label}
+            </Badge>
+          ))}
         </div>
       ) : null}
 

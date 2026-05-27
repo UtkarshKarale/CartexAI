@@ -1,9 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { McpClient } from '../mcp-client'
+import { log } from '../logger'
 import type { AiMessage, AiProvider, AiResponse, AiToolSchema } from './base'
 import type { StreamChunk } from '../../../src/shared/contracts'
 
 const MAX_TOOL_ITERATIONS = 12
+const MAX_TOKENS = 4096
+const MAX_SAME_TOOL_REPEATS = 2
 
 const STATIC_SYSTEM_PROMPT = `You are jifile.ai, an intelligent desktop file assistant powered by Claude.
 
@@ -33,6 +36,15 @@ Be concise, efficient, and always verify before acting.`
 
 const PLAN_TRIGGERS = /\b(organize|sort|clean(\s*up)?|backup\s*all|arrange|restructure|send\s+\w+\.?\w*\s+to\s+(mail|email))\b/i
 
+type ToolSearchEntry = {
+  type: 'tool_search_tool_regex'
+  name: string
+}
+
+type AnthropicToolWithCache = Anthropic.Tool & { cache_control?: { type: 'ephemeral' } }
+
+
+
 export class AnthropicProvider implements AiProvider {
   private readonly client: Anthropic
   private readonly mcpClient = new McpClient()
@@ -44,7 +56,9 @@ export class AnthropicProvider implements AiProvider {
   ) {
     this.client = new Anthropic({
       apiKey,
-      defaultHeaders: { 'anthropic-beta': 'prompt-caching-2024-07-31' },
+      defaultHeaders: {
+        'anthropic-beta': 'prompt-caching-2024-07-31,advanced-tool-use-2025-11-20',
+      },
     })
   }
 
@@ -76,12 +90,20 @@ export class AnthropicProvider implements AiProvider {
     const { dynamicContext, anthropicMessages } = splitMessages(messages)
     const systemBlocks = buildSystemBlocks(dynamicContext)
 
-    const anthropicTools: (Anthropic.Tool & { cache_control?: { type: 'ephemeral' } })[] = tools.map((t, i) => ({
+    const anthropicTools: AnthropicToolWithCache[] = tools.map((t, i) => ({
       name: t.function.name,
       description: t.function.description,
       input_schema: t.function.parameters as Anthropic.Tool['input_schema'],
       ...(i === tools.length - 1 && tools.length > 0 ? { cache_control: { type: 'ephemeral' as const } } : {}),
     }))
+
+    const toolSearchEntry: ToolSearchEntry = {
+      type: 'tool_search_tool_regex',
+      name: 'tool_search_tool_regex',
+    }
+
+    const allTools = [toolSearchEntry, ...anthropicTools] as (AnthropicToolWithCache | ToolSearchEntry)[]
+    const callFingerprints = new Map<string, number>()
 
     if (needsPlan) {
       this.onChunk({ type: 'text', text: '**Planning...**\n\n' })
@@ -93,19 +115,28 @@ export class AnthropicProvider implements AiProvider {
     let accCacheRead = 0
 
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+      const toolNames = anthropicTools.map(t => t.name)
+      log('anthropic', `iter ${i + 1} — model:${this.model} tools:[${toolNames.join(', ')}] msgs:${anthropicMessages.length}`)
+
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1024,
+        max_tokens: MAX_TOKENS,
         system: systemBlocks,
-        tools: anthropicTools,
+        tools: allTools as Anthropic.Tool[],
         messages: anthropicMessages,
       })
 
       const u = response.usage as unknown as Record<string, number>
-      accInput += u.input_tokens ?? 0
-      accOutput += u.output_tokens ?? 0
-      accCacheCreate += u.cache_creation_input_tokens ?? 0
-      accCacheRead += u.cache_read_input_tokens ?? 0
+      const iterIn = u.input_tokens ?? 0
+      const iterOut = u.output_tokens ?? 0
+      const iterCacheCreate = u.cache_creation_input_tokens ?? 0
+      const iterCacheRead = u.cache_read_input_tokens ?? 0
+      accInput += iterIn
+      accOutput += iterOut
+      accCacheCreate += iterCacheCreate
+      accCacheRead += iterCacheRead
+      log('anthropic', `iter ${i + 1} tokens — in:${iterIn} out:${iterOut} cache_create:${iterCacheCreate} cache_read:${iterCacheRead} billed:${iterIn + iterOut}`)
+      if (iterOut >= MAX_TOKENS) log('anthropic', `⚠️  iter ${i + 1} hit max_tokens (${MAX_TOKENS}) — response may be truncated`)
 
       const textContent = response.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
@@ -128,11 +159,31 @@ export class AnthropicProvider implements AiProvider {
       const toolResults: Anthropic.ToolResultBlockParam[] = []
       for (const block of toolUseBlocks) {
         const args = block.input as Record<string, unknown>
+        const fingerprint = `${block.name}::${JSON.stringify(args)}`
+        const fpCount = (callFingerprints.get(fingerprint) ?? 0) + 1
+        callFingerprints.set(fingerprint, fpCount)
+        if (fpCount > MAX_SAME_TOOL_REPEATS) {
+          log('anthropic', `⚠️  ${block.name} called ${fpCount}x with identical args — breaking loop to prevent runaway`)
+          this.onChunk({ type: 'usage', usage: { inputTokens: accInput, outputTokens: accOutput, cacheCreationTokens: accCacheCreate, cacheReadTokens: accCacheRead } })
+          return { content: textContent, toolCalls: [], usage: { inputTokens: accInput, outputTokens: accOutput, cacheCreationTokens: accCacheCreate, cacheReadTokens: accCacheRead } }
+        }
+
         this.onChunk({ type: 'tool_call', toolName: block.name, toolArgs: args })
 
         let result: string
         try {
-          result = await this.mcpClient.callTool(block.name, args)
+          if (block.name === 'tool_search_tool_regex') {
+            const searchRegex = typeof args.regex === 'string' ? args.regex : '.*'
+            const re = new RegExp(searchRegex, 'i')
+            const matched = anthropicTools
+              .filter(t => re.test(t.name))
+              .map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema }))
+            result = JSON.stringify(matched)
+            log('anthropic', `tool_search regex:"${searchRegex}" → ${matched.length} tools matched: [${matched.map(t => t.name).join(', ')}]`)
+            this.onChunk({ type: 'tool_search', toolRegex: searchRegex, toolsMatched: matched.length, text: 'search' })
+          } else {
+            result = await this.mcpClient.callTool(block.name, args)
+          }
         } catch (err) {
           result = `Error: ${err instanceof Error ? err.message : String(err)}`
         }

@@ -256,11 +256,13 @@ export interface SimilarImageResult {
   score: number
   openable: boolean
   ocrText: string
+  objects: string[]
 }
 
 export interface SimilarImagesResponse {
   query: string
   queryOcr: string
+  queryObjects: string[]
   roots: string[]
   scannedCount: number
   results: SimilarImageResult[]
@@ -311,7 +313,7 @@ export interface TokenUsage {
   cacheReadTokens: number
 }
 
-export type StreamChunkType = 'text' | 'tool_call' | 'tool_result' | 'confirm' | 'done' | 'error' | 'usage'
+export type StreamChunkType = 'text' | 'tool_call' | 'tool_result' | 'confirm' | 'done' | 'error' | 'usage' | 'tool_search'
 
 export interface StreamChunk {
   type: StreamChunkType
@@ -322,6 +324,8 @@ export interface StreamChunk {
   confirmId?: string
   error?: string
   usage?: TokenUsage
+  toolRegex?: string
+  toolsMatched?: number
 }
 
 export interface RuntimeApi {

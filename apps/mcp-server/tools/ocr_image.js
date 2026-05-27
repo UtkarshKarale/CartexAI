@@ -1,5 +1,3 @@
-const ocrSpace = require('ocr-space-api-wrapper');
-
 module.exports = {
   name: 'ocr_image',
   definition: {
@@ -15,6 +13,7 @@ module.exports = {
     },
   },
   handler: async (args) => {
+    const ocrSpace = require('ocr-space-api-wrapper');
     const apiKey = args.apiKey || process.env.OCR_SPACE_API_KEY;
     if (!apiKey || apiKey === 'K88574161788957') { // K88574161788957 is the public demo key
        // We'll proceed with demo key if none provided

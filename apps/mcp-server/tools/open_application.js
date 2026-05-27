@@ -27,7 +27,7 @@ module.exports = {
         throw new Error('Target is required.');
       }
 
-      const openDefault = require('open').default;
+      const openDefault = require('open');
       if (/^https?:\/\//i.test(target)) {
         await openDefault(target);
         return {

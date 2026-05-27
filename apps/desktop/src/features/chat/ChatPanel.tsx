@@ -1,7 +1,7 @@
 import {
   Send, Loader2, Wrench, CheckCircle, XCircle, AlertTriangle,
   Bot, User, Trash2, Copy, Share2, ThumbsUp, ThumbsDown,
-  Folder, File, ChevronRight, Home, Zap,
+  Folder, File, ChevronRight, Home, Zap, ExternalLink,
 } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ConversationSummary, FileEntry, MessageRecord, StreamChunk, TokenUsage } from '../../shared/contracts'
@@ -38,6 +38,7 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
   const [copied, setCopied] = useState<string | null>(null)
   const [lastUsage, setLastUsage] = useState<TokenUsage | null>(null)
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>({ inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0 })
+  const [toolSearch, setToolSearch] = useState<{ regex: string; matched: number; label: string } | null>(null)
   const pendingUsageRef = useRef<TokenUsage | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -56,10 +57,13 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
         setPendingConfirm({ id: chunk.confirmId, toolName: chunk.toolName, toolArgs: chunk.toolArgs ?? {} })
       } else if (chunk.type === 'usage' && chunk.usage) {
         pendingUsageRef.current = chunk.usage
+      } else if (chunk.type === 'tool_search' && chunk.toolRegex) {
+        setToolSearch({ regex: chunk.toolRegex, matched: chunk.toolsMatched ?? 0, label: chunk.text ?? 'all' })
       } else if (chunk.type === 'done' || chunk.type === 'error') {
         setIsStreaming(false)
         setStreamingText('')
         setToolActivity(null)
+        setToolSearch(null)
         if (pendingUsageRef.current) {
           const u = pendingUsageRef.current
           setLastUsage(u)
@@ -254,6 +258,19 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
 
             {isStreaming && streamingText && <StreamingBubble text={streamingText} />}
 
+            {toolSearch && (
+              <div className="flex items-center gap-2 text-xs text-[rgb(var(--muted-foreground))] mb-1">
+                <Zap className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+                <span>
+                  Tool search{' '}
+                  <code className="px-1 py-0.5 rounded bg-[rgb(var(--surface-2))] text-[rgb(var(--foreground))] font-mono text-[10px]">
+                    {toolSearch.regex}
+                  </code>{' '}
+                  — <strong className="text-[rgb(var(--foreground))]">{toolSearch.matched} tools</strong> matched
+                </span>
+              </div>
+            )}
+
             {toolActivity && (
               <div className="flex items-center gap-2 text-xs text-[rgb(var(--muted-foreground))]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[rgb(var(--accent))]" />
@@ -396,7 +413,9 @@ function MessageBubble({ message, reaction, copied, onCopy, onShare, onLike, onD
             ? 'bg-[rgb(var(--accent))] text-white rounded-tr-sm'
             : 'bg-[rgb(var(--panel))] text-[rgb(var(--foreground))] rounded-tl-sm border border-[rgb(var(--border))]',
         )}>
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          {isUser
+            ? <p className="whitespace-pre-wrap">{message.content}</p>
+            : <ContentWithPaths text={message.content} />}
         </div>
         <div className={cn('flex items-center gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
           <span className="px-1 text-[10px] text-[rgb(var(--muted-foreground))]">
@@ -592,6 +611,65 @@ function UsageRow({ label, value, color, note }: { label: string; value: number;
 function fmtK(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
+}
+
+const PATH_RE = /((?:\/|~\/)[^\s,;:'"<>(){}\[\]`\\]+)/g
+
+function parseContent(text: string): Array<{ type: 'text' | 'path'; value: string }> {
+  const parts: Array<{ type: 'text' | 'path'; value: string }> = []
+  let last = 0
+  let match: RegExpExecArray | null
+  PATH_RE.lastIndex = 0
+  while ((match = PATH_RE.exec(text)) !== null) {
+    const raw = match[0].replace(/[.,;:!?]+$/, '')
+    if (raw.length < 4) continue
+    if (match.index > last) parts.push({ type: 'text', value: text.slice(last, match.index) })
+    parts.push({ type: 'path', value: raw })
+    last = match.index + raw.length
+  }
+  if (last < text.length) parts.push({ type: 'text', value: text.slice(last) })
+  return parts
+}
+
+function PathChip({ path }: { path: string }) {
+  const [opening, setOpening] = useState(false)
+  const isDir = !path.split('/').pop()?.includes('.')
+  const open = async () => {
+    if (!window.desktopApi?.openTarget) return
+    setOpening(true)
+    try { await window.desktopApi.openTarget(path) } finally { setOpening(false) }
+  }
+  return (
+    <span className="inline-flex items-center gap-1 mx-0.5 align-baseline">
+      <code className="text-xs font-mono text-[rgb(var(--accent))] bg-[rgb(var(--accent))]/10 px-1.5 py-0.5 rounded break-all">
+        {path}
+      </code>
+      <button
+        onClick={open}
+        disabled={opening}
+        className="inline-flex items-center gap-1 shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-[rgb(var(--muted))]/40 hover:bg-[rgb(var(--accent))]/20 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--accent))] transition-colors disabled:opacity-50"
+        title={`Open ${path}`}
+      >
+        {opening
+          ? <Loader2 className="h-3 w-3 animate-spin" />
+          : isDir
+            ? <Folder className="h-3 w-3" />
+            : <ExternalLink className="h-3 w-3" />}
+        Open
+      </button>
+    </span>
+  )
+}
+
+function ContentWithPaths({ text }: { text: string }) {
+  const parts = parseContent(text)
+  return (
+    <p className="whitespace-pre-wrap">
+      {parts.map((part, i) =>
+        part.type === 'path' ? <PathChip key={i} path={part.value} /> : part.value
+      )}
+    </p>
+  )
 }
 
 function EmptyState() {

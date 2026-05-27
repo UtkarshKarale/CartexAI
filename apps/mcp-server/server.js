@@ -37,22 +37,33 @@ const tools = new Map();
  */
 async function loadTools() {
   const toolsDir = path.join(__dirname, 'tools');
-  if (!fs.existsSync(toolsDir)) return;
+  if (!fs.existsSync(toolsDir)) {
+    console.log(`Tools directory not found: ${toolsDir}`);
+    return;
+  }
 
+  console.log('Scanning for tools...');
   const files = fs.readdirSync(toolsDir, { recursive: true });
   for (const file of files) {
     if (file.endsWith('.js')) {
+      const toolColor = '\x1b[36m';
+      const resetColor = '\x1b[0m';
+      process.stdout.write(`Attempting to load tool: ${toolColor}${file}${resetColor}... `);
       try {
         const toolModule = require(path.join(toolsDir, file));
         if (toolModule.name && toolModule.definition) {
           tools.set(toolModule.name, toolModule);
-          console.log(`Loaded tool: ${toolModule.name}`);
+          process.stdout.write(`\x1b[32mOK\x1b[0m (name: ${toolModule.name})\n`);
+        } else {
+          process.stdout.write(`\x1b[33mSKIPPED\x1b[0m (no name/definition)\n`);
         }
       } catch (error) {
-        console.error(`Failed to load tool from ${file}:`, error);
+        process.stdout.write(`\x1b[31mFAILED\x1b[0m\n`);
+        console.error(`Error loading tool ${file}:`, error.message);
       }
     }
   }
+  console.log(`Finished loading tools. Total: ${tools.size}`);
 }
 
 // Register MCP handlers

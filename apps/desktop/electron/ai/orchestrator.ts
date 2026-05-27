@@ -19,6 +19,13 @@ function buildSystemPrompt(settings: AppSettings): string {
     `- Platform: ${process.platform}`,
   ]
 
+  lines.push('')
+  lines.push('Excel / spreadsheet rules (CRITICAL):')
+  lines.push('- NEVER call read_file on .xlsx, .xls, or .csv files — it returns binary garbage and wastes tokens.')
+  lines.push('- For ANY Excel task, ALWAYS start with excel_get_schema to read headers and sheet names.')
+  lines.push('- Then use excel_query_rows, excel_detect_anomalies, excel_generate_summary, excel_export_xlsx as needed.')
+  lines.push('- You have full Excel tools available — never say you cannot create or write Excel files.')
+
   if (settings.smtpHost && settings.smtpUser) {
     lines.push('')
     lines.push('Email (SMTP) is pre-configured in settings:')
@@ -90,7 +97,8 @@ export class AiOrchestrator {
       ? []
       : await this.mcpClient.listTools()
     const tools = allTools.length > 0 ? selectTools(userMessage, allTools) : []
-    log('orchestrator', `tool routing: ${allTools.length} total → ${tools.length} selected`)
+    log('orchestrator', `tool routing: ${allTools.length} total → ${tools.length} selected — [${tools.map(t => t.function.name).join(', ')}]`)
+    log('orchestrator', `prompt length: ${userMessage.length} chars / ~${Math.ceil(userMessage.length / 4)} tokens`)
 
     const messages: AiMessage[] = [
       { role: 'system', content: buildSystemPrompt(this.settings) },
@@ -121,6 +129,7 @@ export class AiOrchestrator {
 
       if (response.usage) {
         this.onChunk({ type: 'usage', usage: response.usage })
+        log('orchestrator', `tokens — in:${response.usage.inputTokens} out:${response.usage.outputTokens} cache_create:${response.usage.cacheCreationTokens} cache_read:${response.usage.cacheReadTokens} billed:${response.usage.inputTokens + response.usage.outputTokens}`)
       }
 
       if (response.toolCalls.length === 0) {
@@ -167,13 +176,17 @@ export class AiOrchestrator {
         }
 
         this.onChunk({ type: 'tool_call', toolName: toolCall.name, toolArgs: toolCall.arguments })
+        log('orchestrator', `tool call: ${toolCall.name} args=${JSON.stringify(toolCall.arguments).slice(0, 120)}`)
 
+        const toolTimer = timer('orchestrator', `tool:${toolCall.name}`)
         let toolResult: string
         try {
           toolResult = await this.mcpClient.callTool(toolCall.name, toolCall.arguments)
         } catch (error) {
           toolResult = `Error: ${error instanceof Error ? error.message : String(error)}`
         }
+        toolTimer()
+        log('orchestrator', `tool result: ${toolCall.name} → ${toolResult.length} chars output`)
 
         this.onChunk({ type: 'tool_result', toolName: toolCall.name, toolResult })
         messages.push({ role: 'tool', content: toolResult })
