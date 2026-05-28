@@ -214,6 +214,7 @@ export interface AppSettings {
   smtpPass: string
   smtpFrom: string
   smtpFromName: string
+  cartexApiUrl: string
 }
 
 export interface UpdateInfo {

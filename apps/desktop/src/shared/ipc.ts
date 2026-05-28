@@ -34,6 +34,13 @@ export const ipcChannels = {
   listDirectory: 'fs:list-directory',
   findSimilarImages: 'desktop:find-similar-images',
   openTarget: 'desktop:open-target',
+  // Cartex integration channels
+  cartexLogin: 'cartex:login',
+  cartexLogout: 'cartex:logout',
+  cartexConfig: 'cartex:config',
+  cartexProviders: 'cartex:providers',
+  cartexDeviceStatus: 'cartex:device-status',
+  cartexSyncConfig: 'cartex:sync-config',
   updateChecking: 'update:checking',
   updateAvailable: 'update:available',
   updateNotAvailable: 'update:not-available',

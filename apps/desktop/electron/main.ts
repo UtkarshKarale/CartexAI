@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray, utilityProcess, t
 import path from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { DesktopRuntime } from './runtime/desktop-runtime'
+import { ApiBasedRuntime } from './runtime/api-runtime'
 import { registerDesktopIpc } from './ipc'
 import { initUpdater } from './updater'
 import { ipcChannels } from '../src/shared/ipc'
@@ -25,7 +25,7 @@ interface WindowBoundsState {
 let mainWindow: BrowserWindow | null = null
 let compactWindow: BrowserWindow | null = null
 let tray: Tray | null = null
-let runtime: DesktopRuntime | null = null
+let runtime: ApiBasedRuntime | null = null
 let mcpProcess: UtilityProcess | null = null
 let isQuitting = false
 
@@ -304,7 +304,7 @@ if (hasSingleInstanceLock) {
   })
 
   app.whenReady().then(() => {
-    runtime = new DesktopRuntime()
+    runtime = new ApiBasedRuntime()
     const smtpEnv = runtime.getSmtpEnvVars()
     startMcpServer(smtpEnv)
     registerDesktopIpc(runtime)

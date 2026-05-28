@@ -1,9 +1,9 @@
 import { ipcMain } from 'electron'
 import { ipcChannels } from '../src/shared/ipc'
-import type { DesktopRuntime } from './runtime/desktop-runtime'
+import type { ApiBasedRuntime } from './runtime/api-runtime'
 import type { StreamChunk } from '../src/shared/contracts'
 
-export function registerDesktopIpc(runtime: DesktopRuntime) {
+export function registerDesktopIpc(runtime: ApiBasedRuntime) {
   ipcMain.handle(ipcChannels.bootstrap, (_event, deviceId: string) => runtime.bootstrap(deviceId))
   ipcMain.handle(ipcChannels.createAccount, (_event, input, deviceId: string) => runtime.createAccount(input, deviceId))
   ipcMain.handle(ipcChannels.login, (_event, input, deviceId: string) => runtime.login(input, deviceId))
@@ -53,4 +53,13 @@ export function registerDesktopIpc(runtime: DesktopRuntime) {
   ipcMain.handle(ipcChannels.listDirectory, (_event, dirPath: string) => runtime.listDirectory(dirPath))
   ipcMain.handle(ipcChannels.findSimilarImages, (_event, input) => runtime.findSimilarImages(input))
   ipcMain.handle(ipcChannels.openTarget, (_event, target: string) => runtime.openTarget(target))
+  
+  // Cartex integration handlers
+  ipcMain.handle(ipcChannels.cartexLogin, (_event, email: string, password: string) => 
+    runtime.cartexLogin(email, password))
+  ipcMain.handle(ipcChannels.cartexLogout, () => runtime.cartexLogout())
+  ipcMain.handle(ipcChannels.cartexConfig, () => runtime.getCartexConfig())
+  ipcMain.handle(ipcChannels.cartexProviders, () => runtime.getCartexProviders())
+  ipcMain.handle(ipcChannels.cartexDeviceStatus, () => runtime.getCartexDeviceStatus())
+  ipcMain.handle(ipcChannels.cartexSyncConfig, () => runtime.forceCartexSync())
 }
