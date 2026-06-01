@@ -11,6 +11,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 process.env.APP_ROOT = path.join(__dirname, '..')
 
+function loadDotEnv() {
+  const candidates = [
+    path.join(process.env.APP_ROOT, '.env'),
+    path.join(process.env.APP_ROOT, '..', '..', '.env'),
+  ]
+  for (const envPath of candidates) {
+    if (!existsSync(envPath)) continue
+    const lines = readFileSync(envPath, 'utf8').split('\n')
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line || line.startsWith('#')) continue
+      const eq = line.indexOf('=')
+      if (eq === -1) continue
+      const key = line.slice(0, eq).trim()
+      const val = line.slice(eq + 1).trim().replace(/^["']|["']$/g, '')
+      if (key && process.env[key] === undefined) process.env[key] = val
+    }
+    break
+  }
+}
+
+loadDotEnv()
+
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
@@ -228,7 +251,7 @@ function createTray() {
   }
 
   tray = new Tray(createTrayIcon())
-  tray.setToolTip('JiFile')
+  tray.setToolTip('jifile.ai')
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
@@ -305,8 +328,8 @@ if (hasSingleInstanceLock) {
 
   app.whenReady().then(() => {
     runtime = new DesktopRuntime()
-    const smtpEnv = runtime.getSmtpEnvVars()
-    startMcpServer(smtpEnv)
+    const mcpEnv = runtime.getMcpEnvVars()
+    startMcpServer(mcpEnv)
     registerDesktopIpc(runtime)
     registerWindowIpc()
     createTray()

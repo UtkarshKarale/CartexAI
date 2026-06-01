@@ -31,6 +31,11 @@ const ipcChannels = {
   listDirectory: 'fs:list-directory',
   findSimilarImages: 'desktop:find-similar-images',
   openTarget: 'desktop:open-target',
+  gmailAuth: 'desktop:gmail-auth',
+  voiceTranscribe: 'desktop:voice-transcribe',
+  listReminders: 'desktop:list-reminders',
+  createReminder: 'desktop:create-reminder',
+  cancelReminder: 'desktop:cancel-reminder',
   updateChecking: 'update:checking',
   updateAvailable: 'update:available',
   updateNotAvailable: 'update:not-available',
@@ -100,6 +105,16 @@ const api = {
     ipcRenderer.invoke(ipcChannels.findSimilarImages, input),
   openTarget: (target) =>
     ipcRenderer.invoke(ipcChannels.openTarget, target),
+  gmailAuth: (action) =>
+    ipcRenderer.invoke(ipcChannels.gmailAuth, action),
+  voiceTranscribe: (wavBuffer) =>
+    ipcRenderer.invoke(ipcChannels.voiceTranscribe, wavBuffer),
+  listReminders: (filter) =>
+    ipcRenderer.invoke(ipcChannels.listReminders, filter),
+  createReminder: (input) =>
+    ipcRenderer.invoke(ipcChannels.createReminder, input),
+  cancelReminder: (id) =>
+    ipcRenderer.invoke(ipcChannels.cancelReminder, id),
   onUpdateAvailable: (callback) =>
     ipcRenderer.on(ipcChannels.updateAvailable, (_event, info) => callback(info)),
   offUpdateAvailable: () =>

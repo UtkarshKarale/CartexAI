@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import {
   AlertCircle,
+  Bell,
   BrainCircuit,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +21,7 @@ import type { AppSettings, ConversationSummary, GemmaModelInfo, MessageRecord, M
 import { cn } from '../../lib/utils'
 import { ChatPanel } from '../chat/ChatPanel'
 import { PhotoSearchPanel } from '../photo-search/PhotoSearchPanel'
+import { RemindersPanel } from '../reminders/RemindersPanel'
 import { SettingsPanel } from '../settings/SettingsPanel'
 import { Sheet, SheetContent } from '../../components/ui/sheet'
 
@@ -79,6 +81,7 @@ export function DesktopShell({
   const [showSettings, setShowSettings] = useState(false)
   const [showWorkspace, setShowWorkspace] = useState(false)
   const [showPhotoSearch, setShowPhotoSearch] = useState(false)
+  const [showReminders, setShowReminders] = useState(false)
   const currentConversation = conversations.find((c) => c.id === selectedConversationId) ?? null
   const conversationList = conversations
 
@@ -156,6 +159,7 @@ export function DesktopShell({
                   setShowPhotoSearch(true)
                 }}
               />
+              <CompactActionButton icon={<Bell className="h-4 w-4" />} label="Reminders" onClick={() => { setShowSettings(false); setShowReminders(true) }} />
               <CompactActionButton icon={<Lock className="h-4 w-4" />} label="Lock" onClick={onLock} />
               <CompactActionButton icon={<LogOut className="h-4 w-4" />} label="Sign out" onClick={onLogout} />
             </div>
@@ -210,6 +214,7 @@ export function DesktopShell({
         />
 
         <PhotoSearchPanel isOpen={showPhotoSearch} onClose={() => setShowPhotoSearch(false)} />
+        <RemindersPanel isOpen={showReminders} onClose={() => setShowReminders(false)} />
       </div>
     )
   }
@@ -224,6 +229,8 @@ export function DesktopShell({
         onToggleCollapse={() => setCollapsed((value) => !value)}
         showSettings={showSettings}
         onToggleSettings={() => setShowSettings((value) => !value)}
+        showReminders={showReminders}
+        onToggleReminders={() => setShowReminders(v => !v)}
         theme={theme}
         onUpdateTheme={onUpdateTheme}
         onCreateConversation={onCreateConversation}
@@ -261,6 +268,7 @@ export function DesktopShell({
       />
 
       <PhotoSearchPanel isOpen={showPhotoSearch} onClose={() => setShowPhotoSearch(false)} />
+      <RemindersPanel isOpen={showReminders} onClose={() => setShowReminders(false)} />
     </div>
   )
 }
@@ -273,6 +281,8 @@ function WorkspaceSidebar({
   onToggleCollapse,
   showSettings,
   onToggleSettings,
+  showReminders,
+  onToggleReminders,
   theme,
   onUpdateTheme,
   onCreateConversation,
@@ -291,6 +301,8 @@ function WorkspaceSidebar({
   onToggleCollapse: () => void
   showSettings: boolean
   onToggleSettings: () => void
+  showReminders?: boolean
+  onToggleReminders?: () => void
   theme: ThemeMode
   onUpdateTheme: (theme: ThemeMode) => void
   onCreateConversation: () => void
@@ -414,6 +426,13 @@ function WorkspaceSidebar({
           label="Photo finder"
           collapsed={collapsed}
           onClick={() => onOpenPhotoSearch?.()}
+        />
+        <SidebarAction
+          icon={<Bell className="h-4 w-4" />}
+          label="Reminders"
+          collapsed={collapsed}
+          active={showReminders}
+          onClick={() => onToggleReminders?.()}
         />
         <SidebarAction
           icon={<Settings2 className="h-4 w-4" />}

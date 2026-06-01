@@ -1,7 +1,7 @@
 import {
   Send, Loader2, Wrench, CheckCircle, XCircle, AlertTriangle,
   Bot, User, Trash2, Copy, Share2, ThumbsUp, ThumbsDown,
-  Folder, File, ChevronRight, Home, Zap, ExternalLink,
+  Folder, File, ChevronRight, Home, Zap, ExternalLink, Mic, MicOff,
 } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ConversationSummary, FileEntry, MessageRecord, StreamChunk, TokenUsage } from '../../shared/contracts'
@@ -34,6 +34,12 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
   const [toolActivity, setToolActivity] = useState<string | null>(null)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null)
   const [filePicker, setFilePicker] = useState<FilePicker | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const audioChunksRef = useRef<Float32Array[]>([])
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [reactions, setReactions] = useState<Record<string, 'like' | 'dislike' | null>>({})
   const [copied, setCopied] = useState<string | null>(null)
   const [lastUsage, setLastUsage] = useState<TokenUsage | null>(null)
@@ -204,6 +210,58 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
     setReactions((prev) => ({ ...prev, [id]: prev[id] === reaction ? null : reaction }))
   }
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } })
+      streamRef.current = stream
+      const ctx = new AudioContext({ sampleRate: 16000 })
+      audioCtxRef.current = ctx
+      audioChunksRef.current = []
+      const source = ctx.createMediaStreamSource(stream)
+      const processor = ctx.createScriptProcessor(4096, 1, 1)
+      processorRef.current = processor
+      processor.onaudioprocess = (e) => {
+        audioChunksRef.current.push(new Float32Array(e.inputBuffer.getChannelData(0)))
+      }
+      source.connect(processor)
+      processor.connect(ctx.destination)
+      setIsRecording(true)
+    } catch {
+      alert('Microphone access denied. Please allow microphone access in your system settings.')
+    }
+  }
+
+  const stopRecording = async () => {
+    setIsRecording(false)
+    processorRef.current?.disconnect()
+    processorRef.current = null
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    await audioCtxRef.current?.close()
+    audioCtxRef.current = null
+
+    const chunks = audioChunksRef.current
+    audioChunksRef.current = []
+    if (chunks.length === 0) return
+
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+    const samples = new Float32Array(totalLen)
+    let offset = 0
+    for (const c of chunks) { samples.set(c, offset); offset += c.length }
+
+    const wavBuffer = encodeWav(samples, 16000)
+    setTranscribing(true)
+    try {
+      const result = await window.desktopApi?.voiceTranscribe(wavBuffer)
+      if (result?.transcription) {
+        setDraft(prev => prev + (prev ? ' ' : '') + result.transcription)
+        setTimeout(() => textareaRef.current?.focus(), 0)
+      }
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
   const filteredEntries = filePicker
     ? filePicker.entries.filter((e) =>
         !filePicker.filter || e.name.toLowerCase().startsWith(filePicker.filter.toLowerCase()),
@@ -362,6 +420,22 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
               style={{ fieldSizing: 'content' } as React.CSSProperties}
             />
             <button
+              onClick={() => void (isRecording ? stopRecording() : startRecording())}
+              disabled={isStreaming || transcribing}
+              title={isRecording ? 'Stop recording' : 'Record voice (offline Whisper)'}
+              className={cn(
+                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl transition',
+                isRecording
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : transcribing
+                    ? 'bg-[rgb(var(--muted))]/40 text-[rgb(var(--muted-foreground))]'
+                    : 'bg-[rgb(var(--muted))]/40 text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--muted))]/70 hover:text-[rgb(var(--foreground))]',
+              )}
+              aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+            >
+              {transcribing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isRecording ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+            </button>
+            <button
               onClick={handleSend}
               disabled={isStreaming || !draft.trim()}
               className={cn(
@@ -376,7 +450,7 @@ export function ChatPanel({ conversation, messages, onSendMessage, onClearConver
             </button>
           </div>
           <div className="mt-2 text-center text-[11px] text-[rgb(var(--muted-foreground))]">
-            {isStreaming ? 'xfile.ai is thinking…' : 'Enter ↵ send · Shift+Enter new line · @ to reference file'}
+            {transcribing ? 'Transcribing with offline Whisper…' : isRecording ? 'Recording — click mic again to stop' : isStreaming ? 'jifile.ai is thinking…' : 'Enter ↵ send · Shift+Enter newline · @ file · 🎤 voice'}
           </div>
         </div>
       </div>
@@ -686,4 +760,27 @@ function EmptyState() {
       </div>
     </div>
   )
+}
+
+function encodeWav(samples: Float32Array, sampleRate: number): Uint8Array {
+  const bitsPerSample = 16
+  const numChannels = 1
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
+  const blockAlign = numChannels * (bitsPerSample / 8)
+  const dataSize = samples.length * (bitsPerSample / 8)
+  const buf = new ArrayBuffer(44 + dataSize)
+  const view = new DataView(buf)
+  const str = (offset: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)) }
+  str(0, 'RIFF'); view.setUint32(4, 36 + dataSize, true); str(8, 'WAVE')
+  str(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true)
+  view.setUint16(22, numChannels, true); view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true)
+  view.setUint16(34, bitsPerSample, true); str(36, 'data'); view.setUint32(40, dataSize, true)
+  let offset = 44
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true)
+    offset += 2
+  }
+  return new Uint8Array(buf)
 }

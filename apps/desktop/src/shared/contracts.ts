@@ -328,6 +328,27 @@ export interface StreamChunk {
   toolsMatched?: number
 }
 
+export interface ReminderRecord {
+  id: string
+  title: string
+  message: string
+  fire_at: string
+  status: 'pending' | 'fired' | 'cancelled'
+  email_to: string | null
+  email_subject?: string | null
+  time_remaining: string | null
+  created_at: string
+}
+
+export interface CreateReminderInput {
+  title: string
+  message: string
+  fire_at: string
+  email_to?: string
+  email_subject?: string
+  email_body?: string
+}
+
 export interface RuntimeApi {
   bootstrap(deviceId: string): Promise<BootstrapPayload>
   createAccount(input: CreateAccountInput, deviceId: string): Promise<BootstrapPayload>
@@ -367,6 +388,11 @@ export interface RuntimeApi {
   listDirectory(dirPath: string): Promise<DirectoryListing>
   findSimilarImages(input: FindSimilarImagesInput): Promise<SimilarImagesResponse>
   openTarget(target: string): Promise<OpenTargetResult>
+  gmailAuth(action: 'auth' | 'status' | 'disconnect'): Promise<{ connected: boolean; email?: string; success?: boolean; message?: string }>
+  listReminders(filter?: 'all' | 'pending' | 'fired' | 'cancelled'): Promise<ReminderRecord[]>
+  createReminder(input: CreateReminderInput): Promise<ReminderRecord>
+  cancelReminder(id: string): Promise<{ success: boolean; message: string }>
+  voiceTranscribe(wavBuffer: Uint8Array): Promise<{ transcription: string }>
   onUpdateAvailable(callback: (info: UpdateInfo) => void): void
   offUpdateAvailable(): void
   onUpdateDownloadProgress(callback: (progress: UpdateDownloadProgress) => void): void

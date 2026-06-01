@@ -3,7 +3,7 @@ const start = Date.now()
 export function log(tag: string, msg: string, extra?: Record<string, unknown>) {
   const elapsed = ((Date.now() - start) / 1000).toFixed(2)
   const extraStr = extra ? ' ' + JSON.stringify(extra) : ''
-  console.log(`[jifile +${elapsed}s] [${tag}] ${msg}${extraStr}`)
+  console.log(`[cartex +${elapsed}s] [${tag}] ${msg}${extraStr}`)
 }
 
 export function timer(tag: string, label: string) {

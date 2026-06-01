@@ -13,7 +13,11 @@ const INTENT_MAP: Array<{ pattern: RegExp; tools: string[] }> = [
   },
   {
     pattern: /\.(pdf)|pdf file|extract.*pdf|pdf.*table|bank.*statement.*pdf|invoice.*pdf/i,
-    tools: ['pdf_extract_tables', 'excel_export_xlsx', 'ocr_image'],
+    tools: ['pdf_extract_tables', 'pdf_read_content', 'excel_export_xlsx', 'ocr_image'],
+  },
+  {
+    pattern: /\bread.*pdf|pdf.*content|summarize.*pdf|pdf.*text|what.*pdf|pdf.*question|open.*pdf\b/i,
+    tools: ['pdf_read_content', 'pdf_extract_tables'],
   },
   {
     pattern: /\.(xml)|xml.*file|xml.*data|convert.*xml/i,
@@ -32,8 +36,24 @@ const INTENT_MAP: Array<{ pattern: RegExp; tools: string[] }> = [
     tools: ['excel_scan_formula_errors'],
   },
   {
+    pattern: /\b(gmail|google mail|my inbox|unread email|email.*api|sign in.*google|connect.*gmail|oauth.*google)\b/i,
+    tools: ['gmail_auth', 'gmail_list_inbox', 'gmail_read_email', 'gmail_send'],
+  },
+  {
+    pattern: /\b(read.*email|check.*email|email.*opportunit|auto.*reply|reply.*suggest|analyze.*email|email.*trigger|email.*listen|new.*email)\b/i,
+    tools: ['gmail_list_inbox', 'gmail_read_email', 'gmail_send', 'gmail_auth'],
+  },
+  {
     pattern: /\b(email|send|mail|smtp|inbox|attachment)\b/i,
-    tools: ['send_email_smtp', 'search_files'],
+    tools: ['send_email_smtp', 'gmail_send', 'search_files', 'schedule_reminder'],
+  },
+  {
+    pattern: /\b(remind|reminder|alarm|set.*alarm|notify.*me)\b|\bin \d+ (minute|hour|day)s?\b|\b(tomorrow|today|tonight)\b.{0,30}\b(at|by)\b|\bat \d{1,2}(:\d{2})?\s*(am|pm)\b|\bschedule\b/i,
+    tools: ['schedule_reminder', 'list_reminders', 'cancel_reminder'],
+  },
+  {
+    pattern: /\b(voice|transcribe|transcription|record.*voice|speech.*text|audio.*file|whisper)\b/i,
+    tools: ['voice_command'],
   },
   {
     pattern: /\b(delete|remove|trash|unlink)\b/i,
@@ -68,16 +88,16 @@ const INTENT_MAP: Array<{ pattern: RegExp; tools: string[] }> = [
     tools: ['organize_downloads', 'duplicate_detector', 'largest_files'],
   },
   {
-    pattern: /\b(backup|drive|cloud|google drive|upload)\b/i,
-    tools: ['backup_to_drive'],
+    pattern: /\b(drive|google drive|upload.*drive|move.*drive|backup.*drive|send.*drive|copy.*drive|save.*drive)\b/i,
+    tools: ['backup_to_drive', 'gmail_auth'],
   },
   {
     pattern: /\b(clipboard|paste|copy to clip)\b/i,
     tools: ['clipboard_manager'],
   },
   {
-    pattern: /\b(open|launch|start app)\b/i,
-    tools: ['open_application'],
+    pattern: /\b(open|launch|start|run)\b.{0,40}\b(app|application|chrome|firefox|brave|edge|safari|code|vscode|cursor|spotify|vlc|slack|discord|zoom|terminal|calculator|notepad|excel|word|powerpoint|finder|explorer)\b|\b(open|launch|start)\b.{0,20}\b(browser|editor|player|studio)\b/i,
+    tools: ['open_application', 'execute_command'],
   },
   {
     pattern: /\b(photo|photos|picture|pictures|image|images|similar image|find photo|find picture|search images)\b/i,

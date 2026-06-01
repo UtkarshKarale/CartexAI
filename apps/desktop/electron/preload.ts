@@ -45,6 +45,11 @@ const api: RuntimeApi = {
   listDirectory: (dirPath: string) => ipcRenderer.invoke(ipcChannels.listDirectory, dirPath),
   findSimilarImages: (input) => ipcRenderer.invoke(ipcChannels.findSimilarImages, input),
   openTarget: (target: string) => ipcRenderer.invoke(ipcChannels.openTarget, target),
+  gmailAuth: (action) => ipcRenderer.invoke(ipcChannels.gmailAuth, action),
+  voiceTranscribe: (wavBuffer) => ipcRenderer.invoke(ipcChannels.voiceTranscribe, wavBuffer),
+  listReminders: (filter) => ipcRenderer.invoke(ipcChannels.listReminders, filter),
+  createReminder: (input) => ipcRenderer.invoke(ipcChannels.createReminder, input),
+  cancelReminder: (id) => ipcRenderer.invoke(ipcChannels.cancelReminder, id),
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) =>
     ipcRenderer.on(ipcChannels.updateAvailable, (_event, info: UpdateInfo) => callback(info)),
   offUpdateAvailable: () => ipcRenderer.removeAllListeners(ipcChannels.updateAvailable),

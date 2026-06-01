@@ -68,8 +68,8 @@ export class OpenRouterProvider implements AiProvider {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://jifile.ai',
-        'X-Title': 'jifile.ai',
+        'HTTP-Referer': 'https://cartex.ai',
+        'X-Title': 'cartex.ai',
       },
       body: JSON.stringify(body),
     })
@@ -118,8 +118,8 @@ export class OpenRouterProvider implements AiProvider {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://jifile.ai',
-        'X-Title': 'jifile.ai',
+        'HTTP-Referer': 'https://cartex.ai',
+        'X-Title': 'cartex.ai',
       },
       body: JSON.stringify({
         model: this.model,

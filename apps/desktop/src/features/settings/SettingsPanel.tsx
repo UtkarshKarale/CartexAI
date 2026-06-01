@@ -11,6 +11,8 @@ import {
   Mail,
   Eye,
   EyeOff,
+  Link,
+  Unlink,
 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
@@ -55,6 +57,8 @@ export function SettingsPanel({
   const [smtpFrom, setSmtpFrom] = useState(settings.smtpFrom)
   const [smtpFromName, setSmtpFromName] = useState(settings.smtpFromName)
   const [showSmtpPass, setShowSmtpPass] = useState(false)
+  const [gmailStatus, setGmailStatus] = useState<{ connected: boolean; email?: string; message?: string } | null>(null)
+  const [gmailLoading, setGmailLoading] = useState(false)
   const [savingKey, setSavingKey] = useState<'anthropic' | 'openrouter' | 'gemini' | 'openai' | 'smtp' | null>(null)
   const [savedKey, setSavedKey] = useState<'anthropic' | 'openrouter' | 'gemini' | 'openai' | 'smtp' | null>(null)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
@@ -74,6 +78,14 @@ export function SettingsPanel({
       document.body.style.overflow = 'unset'
     }
   }, [isOpen, onClose])
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'email' && gmailStatus === null) {
+      window.desktopApi?.gmailAuth('status')
+        .then(setGmailStatus)
+        .catch(() => setGmailStatus({ connected: false, message: 'Could not reach MCP server. Restart the app and try again.' }))
+    }
+  }, [isOpen, activeTab, gmailStatus])
 
   if (!isOpen) return null
 
@@ -415,6 +427,77 @@ export function SettingsPanel({
 
             {activeTab === 'email' && (
               <div className="space-y-8 animate-in slide-in-from-right-2 duration-300">
+                <Section title="Gmail (Sign in with Google)">
+                  <div className="rounded-2xl bg-[rgb(var(--muted))]/20 border border-[rgb(var(--border))] p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="text-sm font-bold text-[rgb(var(--foreground))]">Google Account</div>
+                        <div className="text-xs text-[rgb(var(--muted-foreground))]">
+                          {gmailStatus === null
+                            ? <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />Checking connection…</span>
+                            : gmailStatus.connected
+                              ? <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />Connected as <strong>{gmailStatus.email}</strong></span>
+                              : <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />Not connected — click Connect Gmail to sign in</span>
+                          }
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={gmailLoading}
+                          onClick={() => {
+                            setGmailStatus(null)
+                          }}
+                          className="gap-1.5 text-xs text-[rgb(var(--muted-foreground))]"
+                          title="Refresh status"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                        </Button>
+                        {gmailStatus?.connected ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={gmailLoading}
+                            onClick={async () => {
+                              setGmailLoading(true)
+                              const res = await window.desktopApi?.gmailAuth('disconnect')
+                              setGmailStatus(res ?? null)
+                              setGmailLoading(false)
+                            }}
+                            className="gap-1.5 text-xs font-semibold border-red-500/30 text-red-400 hover:bg-red-500/10"
+                          >
+                            {gmailLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                            Disconnect
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={gmailLoading}
+                            onClick={async () => {
+                              setGmailLoading(true)
+                              const res = await window.desktopApi?.gmailAuth('auth')
+                              setGmailStatus(res ?? null)
+                              setGmailLoading(false)
+                            }}
+                            className="gap-1.5 text-xs font-bold"
+                          >
+                            {gmailLoading ? <><Loader2 className="h-3 w-3 animate-spin" />Waiting for browser…</> : <><Link className="h-3 w-3" />Connect Gmail</>}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {gmailStatus !== null && !gmailStatus.connected && (
+                      <p className="text-[11px] text-[rgb(var(--muted-foreground))] leading-relaxed">
+                        {gmailStatus.message?.includes('MCP')
+                          ? gmailStatus.message
+                          : <>Opens your browser for Google sign-in. No password stored — OAuth2 only. After connecting, ask the AI <em>"check my inbox"</em> or <em>"reply to the last email from X"</em>.</>
+                        }
+                      </p>
+                    )}
+                  </div>
+                </Section>
+
                 <Section title="SMTP Configuration">
                   <p className="text-xs text-[rgb(var(--muted-foreground))] -mt-2 mb-2">
                     These credentials are used when xfile.ai sends emails on your behalf via the <code className="bg-[rgb(var(--muted))]/40 px-1 rounded text-xs">send_email_smtp</code> tool.

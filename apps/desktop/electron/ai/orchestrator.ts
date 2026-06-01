@@ -10,7 +10,7 @@ function buildSystemPrompt(settings: AppSettings): string {
   const homeDir = os.homedir()
   const desktopDir = path.join(homeDir, 'Desktop')
   const lines: string[] = [
-    'You are jifile.ai, a local desktop AI assistant. You help users manage files, run system commands, and organize their workspace.',
+    'You are cartex.ai, a local desktop AI assistant. You help users manage files, run system commands, and organize their workspace.',
     'You have access to tools — use them whenever the user asks to do something with files, folders, or the system. Be concise and clear.',
     '',
     `User environment:`,
@@ -264,8 +264,8 @@ export class AiOrchestrator {
 
     const isListQuery = ['list_files', 'search_files', 'recent_files', 'largest_files', 'duplicate_detector', 'activity_logs'].includes(routed.tool)
     const systemMsg = isListQuery
-      ? 'You are jifile.ai. Present the tool result to the user directly. Show all file/folder names as a clean list.'
-      : 'You are jifile.ai. The tool ran. Reply in 1-2 sentences. Be concise.'
+      ? 'You are cartex.ai. Present the tool result to the user directly. Show all file/folder names as a clean list.'
+      : 'You are cartex.ai. The tool ran. Reply in 1-2 sentences. Be concise.'
     const resultContent = isListQuery ? toolResult.slice(0, 1200) : toolResult.slice(0, 400)
 
     return this.streamViaLocalLlm(systemMsg, userMessage, resultContent)

@@ -2,8 +2,8 @@
   "name": "desktop",
   "private": true,
   "version": "0.4.0",
-  "description": "jifile.ai local-first AI desktop assistant.",
-  "author": "JiFile",
+  "description": "cartex.ai local-first AI desktop assistant.",
+  "author": "Cartex",
   "type": "module",
   "scripts": {
     "dev": "vite",

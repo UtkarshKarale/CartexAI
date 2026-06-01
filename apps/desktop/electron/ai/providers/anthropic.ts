@@ -8,7 +8,7 @@ const MAX_TOOL_ITERATIONS = 12
 const MAX_TOKENS = 4096
 const MAX_SAME_TOOL_REPEATS = 2
 
-const STATIC_SYSTEM_PROMPT = `You are jifile.ai, an intelligent desktop file assistant powered by Claude.
+const STATIC_SYSTEM_PROMPT = `You are cartex.ai, an intelligent desktop file assistant powered by Claude.
 
 ## Behavior
 

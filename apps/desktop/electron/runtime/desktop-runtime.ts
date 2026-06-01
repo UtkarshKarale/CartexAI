@@ -841,7 +841,7 @@ export class DesktopRuntime {
     }
   }
 
-  getSmtpEnvVars(): Record<string, string> {
+  getMcpEnvVars(): Record<string, string> {
     const s = this.loadSettings()
     return {
       SMTP_HOST: s.smtpHost,
@@ -850,6 +850,10 @@ export class DesktopRuntime {
       SMTP_PASS: s.smtpPass,
       SMTP_FROM: s.smtpFrom,
       SMTP_FROM_NAME: s.smtpFromName,
+      OPENAI_API_KEY: s.openaiApiKey,
+      OPENAI_BASE_URL: s.openaiBaseUrl,
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? '',
     }
   }
 
@@ -884,6 +888,67 @@ export class DesktopRuntime {
       return JSON.parse(raw) as SimilarImagesResponse
     } catch (error) {
       throw new Error(`Unable to parse image search results: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  async listReminders(filter: string = 'all'): Promise<import('../../src/shared/contracts').ReminderRecord[]> {
+    const text = await this.callMcpTool('list_reminders', { status_filter: filter })
+    try {
+      const parsed = JSON.parse(text) as { reminders: import('../../src/shared/contracts').ReminderRecord[] }
+      return parsed.reminders ?? []
+    } catch { return [] }
+  }
+
+  async createReminder(input: import('../../src/shared/contracts').CreateReminderInput): Promise<import('../../src/shared/contracts').ReminderRecord> {
+    const text = await this.callMcpTool('schedule_reminder', {
+      title: input.title,
+      message: input.message,
+      fire_at: input.fire_at,
+      email_to: input.email_to,
+      email_subject: input.email_subject,
+      email_body: input.email_body,
+    })
+    const parsed = JSON.parse(text) as { id: string; fire_at: string; success: boolean }
+    return {
+      id: parsed.id,
+      title: input.title,
+      message: input.message,
+      fire_at: parsed.fire_at,
+      status: 'pending',
+      email_to: input.email_to ?? null,
+      email_subject: input.email_subject ?? null,
+      time_remaining: null,
+      created_at: new Date().toISOString(),
+    }
+  }
+
+  async cancelReminder(id: string): Promise<{ success: boolean; message: string }> {
+    const text = await this.callMcpTool('cancel_reminder', { id })
+    try { return JSON.parse(text) as { success: boolean; message: string } }
+    catch { return { success: false, message: text } }
+  }
+
+  async gmailAuth(action: 'auth' | 'status' | 'disconnect'): Promise<{ connected: boolean; email?: string; success?: boolean; message: string }> {
+    const text = await this.callMcpTool('gmail_auth', { action })
+    try {
+      return JSON.parse(text) as { connected: boolean; email?: string; success?: boolean; message: string }
+    } catch {
+      return { connected: false, message: text }
+    }
+  }
+
+  async voiceTranscribe(wavBuffer: Uint8Array): Promise<{ transcription: string }> {
+    const { writeFileSync, unlinkSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+    const tmpPath = join(tmpdir(), `jifile-voice-${Date.now()}.wav`)
+    writeFileSync(tmpPath, wavBuffer)
+    try {
+      const text = await this.callMcpTool('voice_command', { audio_path: tmpPath })
+      const parsed = JSON.parse(text) as { transcription: string }
+      return { transcription: parsed.transcription ?? text }
+    } finally {
+      try { unlinkSync(tmpPath) } catch { /* best effort */ }
     }
   }
 

@@ -6,7 +6,7 @@ module.exports = {
   name: 'send_email_smtp',
   definition: {
     name: 'send_email_smtp',
-    description: 'Send an email using SMTP with optional file attachments. Falls back to credentials configured in jifile.ai Settings → Email / SMTP when none are provided.',
+    description: 'Send an email using SMTP credentials. Use this ONLY when Gmail OAuth is not connected (check gmail_auth status first). If Gmail is connected, prefer gmail_send instead. Falls back to credentials configured in Settings → Email / SMTP.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -53,4 +53,9 @@ export function registerDesktopIpc(runtime: DesktopRuntime) {
   ipcMain.handle(ipcChannels.listDirectory, (_event, dirPath: string) => runtime.listDirectory(dirPath))
   ipcMain.handle(ipcChannels.findSimilarImages, (_event, input) => runtime.findSimilarImages(input))
   ipcMain.handle(ipcChannels.openTarget, (_event, target: string) => runtime.openTarget(target))
+  ipcMain.handle(ipcChannels.gmailAuth, (_event, action: 'auth' | 'status' | 'disconnect') => runtime.gmailAuth(action))
+  ipcMain.handle(ipcChannels.voiceTranscribe, (_event, wavBuffer: Uint8Array) => runtime.voiceTranscribe(wavBuffer))
+  ipcMain.handle(ipcChannels.listReminders, (_event, filter?: string) => runtime.listReminders(filter))
+  ipcMain.handle(ipcChannels.createReminder, (_event, input) => runtime.createReminder(input))
+  ipcMain.handle(ipcChannels.cancelReminder, (_event, id: string) => runtime.cancelReminder(id))
 }

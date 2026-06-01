@@ -189,6 +189,17 @@ app.post('/api/chat', async (request, reply) => {
 const start = async () => {
   try {
     await loadTools();
+
+    const scheduleReminderTool = tools.get('schedule_reminder')
+    const cancelReminderTool = tools.get('cancel_reminder')
+    if (scheduleReminderTool && scheduleReminderTool.restoreReminders) {
+      scheduleReminderTool.restoreReminders()
+      if (cancelReminderTool && cancelReminderTool.setActiveJobs) {
+        cancelReminderTool.setActiveJobs(scheduleReminderTool._activeJobs || new Map())
+      }
+      console.log('[reminders] Restored pending reminders from disk.')
+    }
+
     await app.listen({ port: 4000, host: '0.0.0.0' });
     console.log('MCP Server Running on http://localhost:4000');
     console.log('SSE endpoint: http://localhost:4000/sse');
